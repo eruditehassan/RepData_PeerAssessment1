@@ -1,0 +1,84 @@
+---
+title: "Reproducible Research Project 1"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r, echo = TRUE, message = FALSE, warning= FALSE}
+library(dplyr)
+library(mice)
+library(ggplot2)
+```
+
+## Loading and preprocessing the data
+
+In this step, I'll be loading the dataset and performing basic preprocessing on it so that it can be used for further analysis
+
+```{r load, echo = TRUE}
+activity <- read.csv("activity.csv")
+activity <- transform(activity, date = as.Date(date))
+head(activity)
+```
+
+## What is mean total number of steps taken per day?
+
+To find the mean number of steps per day, first we group the dataset using `dplyr` package and then summarise the data by finding mean number of steps per day
+
+```{r, echo=TRUE, message = FALSE}
+activity_sub <- subset(activity, !is.na(steps))
+activity_by_day <- group_by(activity_sub, date)
+activity_by_day <- summarise(activity_by_day, total_steps = sum(steps))
+head(activity_by_day)
+with(activity_by_day, hist(total_steps, col = "#d9a61c", xlab = "Total number of steps by day", main = "Histogram of Total steps by day"))
+abline(v = mean(activity_by_day$total_steps), lw = 2, col = "red")
+cat("The mean number of steps per day are: ",mean(activity_by_day$total_steps))
+cat("The median number of steps per day are: ",median(activity_by_day$total_steps))
+```
+
+Since mean and median values are very close, they are represented by the same vertical red line in the graph.
+
+## What is the average daily activity pattern?
+First the data has to be prepared in order to do analysis on daily activity pattern. Therefore, the data is grouped by 5 minute interval labels and then it is summarised by finding average number of steps per 5 minute time label, averaged across all the days.
+```{r, echo=TRUE, message= FALSE}
+activity_by_interval <- group_by(activity_sub, interval)
+activity_by_interval <- summarise(activity_by_interval, mean_steps = mean(steps))
+head(activity_by_interval)
+with(activity_by_interval, plot(interval, mean_steps, type='l', col = "#0080FF", xlab = "5 minute intervals", ylab = "Average number of steps", main = "Average daily activity pattern"))
+```
+The 5 minute interval having maximum number of steps can be found as:
+```{r, echo=TRUE}
+activity_by_interval[activity_by_interval$mean_steps == max(activity_by_interval$mean_steps),]
+```
+Thus, the 5 minute interval labeled by `835` has the maximum number of steps on average, which satisfies the pattern shown in the plot.
+
+## Imputing missing values
+```{r, echo = TRUE}
+sum(is.na(activity))
+```
+This shows the number of missing values in the dataset.
+```{r, echo = TRUE, message= FALSE}
+imp <- mice(activity, where = is.na(activity))
+imputed_activity <- complete(imp)
+sum(is.na(imputed_activity))
+```
+Using the mice package to perform imputations. After the process is complete, it can be seen that there are zero missing values.
+
+## Are there differences in activity patterns between weekdays and weekends?
+To perform this analysis, first the data has to be prepared.
+```{r, echo=TRUE}
+imputed_activity <- transform(imputed_activity, day_factor = factor(ifelse(weekdays(date) %in% c("Saturday","Sunday"), "weekend","weekday")))
+head(imputed_activity)
+```
+To calculate average number of steps, average across weekdays or weekends, the data has to be grouped on the basis of two attributes, `interval` and `day_factor`.
+```{r, echo=TRUE}
+grouped <- group_by(imputed_activity, interval, day_factor)
+grouped <- summarise(grouped, avg_steps = mean(steps))
+head(grouped)
+```
+Now the plot can be made.
+``` {r, echo=TRUE}
+g <- ggplot(grouped, aes(x = interval, y = avg_steps))
+g + geom_line(color='steelblue') + facet_grid(day_factor ~ .) + labs(title = "Activity patterns between weekdays and weekends", y = "Number of Steps")
+```
