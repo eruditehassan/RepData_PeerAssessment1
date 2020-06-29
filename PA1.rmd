@@ -65,6 +65,14 @@ sum(is.na(imputed_activity))
 ```
 Using the mice package to perform imputations. After the process is complete, it can be seen that there are zero missing values.
 
+## Histogram of the total number of steps after imputing data
+After imputing the data, we can create another histogram to see things more clearly.
+``` {r, echo = TRUE}
+by_day <- group_by(imputed_activity, date)
+by_day <- summarise(by_day, total_steps = sum(steps))
+with(by_day, hist(total_steps, col = "#d9a61c", xlab = "Total number of steps by day", main = "Histogram of Total steps by day"))
+```
+
 ## Are there differences in activity patterns between weekdays and weekends?
 To perform this analysis, first the data has to be prepared.
 ```{r, echo=TRUE}
